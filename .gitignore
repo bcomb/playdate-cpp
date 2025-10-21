@@ -1,4 +1,6 @@
 *.zip
 .vscode
-build/
+build*/
 *.pdx
+*.elf
+*.dll

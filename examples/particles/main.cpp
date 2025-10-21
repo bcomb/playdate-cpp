@@ -14,7 +14,7 @@
 #include <pdcpp/pdnewlib.h>
 
 // First, give the library that will be included a name
-constexpr char* PARTICLE_CLASS_NAME = "particlelib.particles";
+constexpr const char* PARTICLE_CLASS_NAME = "particlelib.particles";
 
 // These static elements will be initialized in the eventHandler's `InitLua` event
 static PlaydateAPI* pd = nullptr;
@@ -123,7 +123,7 @@ static int particlelib_newobject(lua_State* L)
     (void)L; // Ignore me!
     int count = pd->lua->getArgInt(1);
     particles = std::make_unique<ParticlesLuaManager>(count);
-    pd->lua->pushObject(particles.get(), PARTICLE_CLASS_NAME, 0);
+    pd->lua->pushObject(particles.get(), (char*)PARTICLE_CLASS_NAME, 0);
     return 1;
 }
 
@@ -196,15 +196,16 @@ int eventHandler(PlaydateAPI* playdate, PDSystemEvent event, uint32_t arg)
 {
 	(void)arg;
     eventHandler_pdnewlib(pd, event, arg);
+
+    pd = playdate;
+
     if (event == kEventInit)
     {
 
     }
 
 	if (event == kEventInitLua)
-	{
-		pd = playdate;
-
+	{	
 		const char* err;
 
 		if ( !pd->lua->registerClass(PARTICLE_CLASS_NAME, particlesLib, nullptr, 0, &err) )
@@ -222,6 +223,23 @@ int eventHandler(PlaydateAPI* playdate, PDSystemEvent event, uint32_t arg)
 		flakes[1] = pd->graphics->loadBitmap(path2, &outErr);
 		flakes[2] = pd->graphics->loadBitmap(path3, &outErr);
 		flakes[3] = pd->graphics->loadBitmap(path4, &outErr);
+
+        const char* patha = "images/snowflake_noalpha";
+        LCDBitmap* noalpha = pd->graphics->loadBitmap(patha, &outErr);
+
+        uint8_t* data = NULL;
+        uint8_t* mask = NULL;
+        int w, h, r;
+        pd->graphics->getBitmapData(flakes[0], &w, &h, &r, &mask, &data);
+        LCDSolidColor color = pd->graphics->getBitmapPixel(flakes[0], 0, 0);
+
+        data = NULL;
+        mask = NULL;
+        pd->graphics->getBitmapData(noalpha, &w, &h, &r, &mask, &data);
+        color = pd->graphics->getBitmapPixel(noalpha, 0, 0);
+
+        // Max frame rate
+		pd->display->setRefreshRate(0);
 	}
 
 	return 0;

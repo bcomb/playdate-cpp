@@ -17,10 +17,10 @@ constexpr int TEXT_HEIGHT = 16;
 /**
  * This Class contains the entire logic of the "game"
  */
-class HelloWorld
+class Application
 {
 public:
-    explicit HelloWorld(PlaydateAPI* api)
+    explicit Application(PlaydateAPI* api)
         : pd(api)
         , fontpath("/System/Fonts/Asheville-Sans-14-Bold.pft")
         , x((400 - TEXT_WIDTH) / 2)
@@ -67,7 +67,7 @@ private:
  * You can use STL containers! Be careful with some stdlib objects which rely
  * on an OS though, those will cause your app to crash on launch.
  */
-std::unique_ptr<HelloWorld> helloWorld;
+std::unique_ptr<Application> helloWorld;
 
 
 /**
@@ -113,7 +113,7 @@ int eventHandler(PlaydateAPI* pd, PDSystemEvent event, uint32_t arg)
     if (event == kEventInit)
     {
         pd->display->setRefreshRate(20);
-        helloWorld = std::make_unique<HelloWorld>(pd);
+        helloWorld = std::make_unique<Application>(pd);
 
         // and sets the tick function to be called on update to turn off the
         // typical 'Lua'-ness.

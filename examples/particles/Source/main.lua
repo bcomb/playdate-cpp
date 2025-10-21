@@ -12,7 +12,8 @@ local testRect = playdate.geometry.rect.new(170, 90, 60, 60)
 local showInstructions = true
 
 function playdate.update()
-
+	--playdate.display.setRefreshRate(0)
+	
 	particles:update()
 	particles:draw()
 

@@ -1,3 +1,5 @@
+cmake_minimum_required(VERSION 3.15)
+
 project("PlaydateCPP")
 
 option(PDCPP_STAGE_IN_BINARY_DIR "Use CMake binary dir (instead of source dir) to stage files" OFF)
@@ -45,6 +47,7 @@ if (TOOLCHAIN STREQUAL "armgcc")
 
     target_link_options(playdate_sdk PUBLIC ${MCFLAGS})
     target_link_options(playdate_sdk PUBLIC -T${CMAKE_CURRENT_SOURCE_DIR}/buildsupport/link_map.ld)
+    #target_link_options(playdate_sdk PUBLIC -T${CMAKE_CURRENT_SOURCE_DIR}/buildsupport/link_map_beber.ld)
     target_link_options(playdate_sdk PUBLIC "-Wl,-Map=game.map,--cref,--gc-sections,--no-warn-mismatch,--emit-relocs")
     target_link_options(playdate_sdk PUBLIC --entry eventHandlerShim)
 else ()
@@ -64,7 +67,7 @@ target_include_directories(playdate_sdk PUBLIC ${SDK}/C_API)
 # now we can build the core PDCPP Core library
 add_library(pdcpp_core STATIC ${CMAKE_CURRENT_SOURCE_DIR}/src/pdnewlib.c ${CMAKE_CURRENT_SOURCE_DIR}/src/pdnewdelete.cpp)
 target_include_directories(pdcpp_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/inc)
-target_link_libraries(pdcpp_core playdate_sdk)
+target_link_libraries(pdcpp_core PUBLIC playdate_sdk)
 
 if (PDCPP_BUILD_EXAMPLES)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/examples)
