@@ -3,8 +3,8 @@
 Fork from https://github.com/nstbayless/playdate-cpp
 
 ## Prerequisite
-* Install the `arm-gnu-toolchain-14.3.rel1-mingw-w64-i686-arm-none-eabi` and add to PATH (the gcc-arm-none-eabi-10.3-2021.10 toolchain bug at link stage)
-* Install PlaydateSDK and add to PATH
+* Install the [arm-gnu-toolchain-14.3.rel1-mingw-w64-i686-arm-none-eabi](https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain) and add to PATH (the gcc-arm-none-eabi-10.3-2021.10 toolchain bug at link stage)
+* Install [PlaydateSDK](https://play.date/dev/) and add to PATH
 * set PLAYDATE_SDK_PATH env var
 
 ## Generate Solution
