@@ -1,4 +1,5 @@
 message(STATUS "Building PDCPP Base Examples")
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/hello_world)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/particles)
-add_subdirectory(application)
+#add_subdirectory(hello_world)
+#add_subdirectory(particles)
+#add_subdirectory(application)
+add_subdirectory(shadertoy)

@@ -8,8 +8,7 @@
  */
 #include <pdcpp/pdnewlib.h>
 #include "Application.h"
-
-Application* app = nullptr;
+#include "Globals.h"
 
 /**
  * The Playdate API requires a C-style, or static function to be called as the
@@ -18,7 +17,7 @@ Application* app = nullptr;
  */
 static int gameTick(void* userdata)
 {
-    app->update();
+    _G.App->Update();
     return 1;
 };
 
@@ -42,7 +41,7 @@ extern "C" {
 #ifdef _WINDLL
     __declspec(dllexport)
 #endif
-        int eventHandler(PlaydateAPI* pd, PDSystemEvent event, uint32_t arg)
+    int eventHandler(PlaydateAPI* pd, PDSystemEvent event, uint32_t arg)
     {
         /*
          * This is required, otherwise linker errors abound
@@ -52,9 +51,11 @@ extern "C" {
         // Initialization just creates our "game" object
         if (event == kEventInit)
         {
-            pd->display->setRefreshRate(20);
-            app = new Application(pd);
-            app->initialize();
+            _G.pd = pd;
+            pd->display->setRefreshRate(0);
+            
+            _G.App = new Application(pd);
+            _G.App->Initialize();
 
             // Calling setUpdateCallback in Init will run app in full C (no Lua mode)
             pd->system->setUpdateCallback(gameTick, pd);
@@ -64,9 +65,9 @@ extern "C" {
         if (event == kEventTerminate)
         {
             pd->system->logToConsole("Tearing down...");
-            app->finalize();
-            delete app;
-            app = nullptr;
+            _G.App->Finalize();
+            delete _G.App;
+            _G.App = nullptr;
         }
         return 0;
     }
