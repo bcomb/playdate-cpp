@@ -23,3 +23,13 @@ From the `x64 Native Tools Command Prompt for VS 2022`
 ### Deploy
 From the emulator and only with the Playdate build do `Upload Game To Device`<br>
 `Run Game On Device` crash dunno why
+
+
+# Some examples
+
+## ShaderToy
+Play with "shader", try to copy paste "as it" some incredible shader from awesome [Shader Toy](https://www.shadertoy.com) community<br>
+<br>
+Use a blue noise dithering technique from [Aras Pranckevičius](https://aras-p.info/blog/2024/05/20/Crank-the-World-Playdate-demo/)
+
+![Rubic's cube, remote](images/shadertoy.gif)
