@@ -41,8 +41,8 @@ void Application::Update()
     GlobalTime = pd->system->getElapsedTime();
     pd->graphics->clear(kColorWhite);
 
-    //testDrawing(GlobalTime);    
-    //testLineDrawing(GlobalTime);
+    testDrawing(GlobalTime);    
+    testLineDrawing(GlobalTime);
     //testSprite(GlobalTime);
 
     testPicoSvg(GlobalTime);

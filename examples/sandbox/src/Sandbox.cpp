@@ -315,7 +315,7 @@ void testShiftPattern(float Time)
 void testDrawing(float Time)
 {
     PlaydateAPI* pd = _G.pd;
-    
+    pd->graphics->setDrawOffset(0, 0);
 
     static FixedPattern8x8 fixedPattern(dexterPinstripe);
     static bool IsInit = false;
@@ -423,6 +423,8 @@ void testDrawing(float Time)
 void testLineDrawing(float Time)
 {
     PlaydateAPI* pd = _G.pd;
+
+    pd->graphics->setDrawOffset(0, 0);
 
     float speed = 10.0;
     float tx = sinf(Time * speed) * 20.0;
