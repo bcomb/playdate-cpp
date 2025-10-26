@@ -229,7 +229,7 @@ std::vector<vec2> parsePath(const char* start, const char* end)
         case 'M':
         case 'm':
         {
-            float x, y;
+            float x=0, y=0;
             while (ptr < end && isNumberStart(*ptr)) {
                 ptr = parseFloat(ptr, end, x);
                 ptr = parseFloat(ptr, end, y);
@@ -257,7 +257,7 @@ std::vector<vec2> parsePath(const char* start, const char* end)
         case 'L':
         case 'l':
         {
-            float x, y;
+            float x = 0, y = 0;
             while (ptr < end && isNumberStart(*ptr)) {
                 ptr = parseFloat(ptr, end, x);
                 ptr = parseFloat(ptr, end, y);
@@ -274,7 +274,7 @@ std::vector<vec2> parsePath(const char* start, const char* end)
         case 'H':
         case 'h':
         {
-            float x;
+            float x = 0;
             while (ptr < end && isNumberStart(*ptr)) {
                 ptr = parseFloat(ptr, end, x);
                 if (cmd == 'h')
@@ -290,7 +290,7 @@ std::vector<vec2> parsePath(const char* start, const char* end)
         case 'V':
         case 'v':
         {
-            float y;
+            float y = 0;
             while (ptr < end && isNumberStart(*ptr)) {
                 ptr = parseFloat(ptr, end, y);
                 if (cmd == 'v')
@@ -325,8 +325,6 @@ std::vector<vec2> parsePath(const char* start, const char* end)
 
 std::vector<std::vector<vec2>> svgParsePath(const char* filename)
 {
-    PlaydateAPI* pd = _G.pd;
-
     std::vector<std::vector<vec2>> polygons;
 
     const char* startDocument = readTextFile("./level0.svg");
