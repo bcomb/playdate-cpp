@@ -69,6 +69,6 @@ add_library(pdcpp_core STATIC ${CMAKE_CURRENT_SOURCE_DIR}/src/pdnewlib.c ${CMAKE
 target_include_directories(pdcpp_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/inc)
 target_link_libraries(pdcpp_core PUBLIC playdate_sdk)
 
-if (PDCPP_BUILD_EXAMPLES)
+#if (PDCPP_BUILD_EXAMPLES)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/examples)
-endif ()
+#endif ()
