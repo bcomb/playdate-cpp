@@ -18,13 +18,11 @@ add_playdate_application(${PROJECT_NAME})
 
 set(SOURCES
     src/main.cpp
-    src/Application.h
+
+    inc/Application.h
     src/Application.cpp
-    src/ImageLoader.h
-    src/ImageLoader.cpp
-    src/Globals.h
-    src/Globals.cpp
-    src/Shadertoy.h
+
+    inc/Shadertoy.h
     src/Shadertoy.cpp
 )
 

@@ -3,10 +3,8 @@
 #include "SimpleMath.h"
 #include "SvgLoader.h"
 
+#include <pd_api.h>
 #include <assert.h>
-
-#include <pdcpp/pdnewlib.h>
-
 #include <vector>
 
 

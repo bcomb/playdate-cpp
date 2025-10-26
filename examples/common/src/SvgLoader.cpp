@@ -230,7 +230,8 @@ std::vector<vec2> parsePath(const char* start, const char* end)
         switch (cmd)
         {
         case 'M':
-        case 'm': {
+        case 'm':
+        {
             float x, y;
             while (ptr < end && isNumberStart(*ptr)) {
                 ptr = parseFloat(ptr, end, x);
@@ -257,7 +258,8 @@ std::vector<vec2> parsePath(const char* start, const char* end)
         }
 
         case 'L':
-        case 'l': {
+        case 'l':
+        {
             float x, y;
             while (ptr < end && isNumberStart(*ptr)) {
                 ptr = parseFloat(ptr, end, x);
@@ -273,7 +275,8 @@ std::vector<vec2> parsePath(const char* start, const char* end)
         }
 
         case 'H':
-        case 'h': {
+        case 'h':
+        {
             float x;
             while (ptr < end && isNumberStart(*ptr)) {
                 ptr = parseFloat(ptr, end, x);
@@ -288,7 +291,8 @@ std::vector<vec2> parsePath(const char* start, const char* end)
         }
 
         case 'V':
-        case 'v': {
+        case 'v':
+        {
             float y;
             while (ptr < end && isNumberStart(*ptr)) {
                 ptr = parseFloat(ptr, end, y);
@@ -303,7 +307,8 @@ std::vector<vec2> parsePath(const char* start, const char* end)
         }
 
         case 'Z':
-        case 'z': {
+        case 'z':
+        {
             cur = startPoint;
             v.push_back(cur);
             break;
@@ -339,12 +344,7 @@ std::vector<std::vector<vec2>> svgParsePath(const char* filename)
             if (startAttribute)
             {
                 const char* startValue, * endValue;
-                nextAttribute("id", startAttribute, endAttribute, &startValue, &endValue);
-                if (startValue)
-                {
-
-                }
-
+                //nextAttribute("id", startAttribute, endAttribute, &startValue, &endValue);
                 nextAttribute("d", startAttribute, endAttribute, &startValue, &endValue);
                 if (startValue)
                 {

@@ -19,21 +19,14 @@ add_playdate_application(${PROJECT_NAME})
 set(SOURCES
     src/main.cpp
 
-    src/SimpleMath.h
-
-    src/Application.h
+    inc/Application.h
     src/Application.cpp
-    src/ImageLoader.h
-    src/ImageLoader.cpp
-    src/SvgLoader.h
-    src/SvgLoader.cpp
-    src/Globals.h
-    src/Globals.cpp
-    src/Shadertoy.h
-    src/Shadertoy.cpp
-    src/Sandbox.h
+
+    inc/Sandbox.h
     src/Sandbox.cpp
 )
 
 # Add its sources, and you're good to go!
 target_sources(${PROJECT_NAME} PUBLIC ${SOURCES})
+target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/inc)
+target_link_libraries(${PROJECT_NAME} PUBLIC pdcpp_core common)

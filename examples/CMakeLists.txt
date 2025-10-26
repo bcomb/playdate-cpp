@@ -1,4 +1,5 @@
 message(STATUS "Building PDCPP Base Examples")
+add_subdirectory(common)
 #add_subdirectory(hello_world)
 #add_subdirectory(particles)
 #add_subdirectory(application)

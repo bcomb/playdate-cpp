@@ -1,9 +1,8 @@
 #include "Application.h"
 #include "ImageLoader.h"
-#include "Shadertoy.h"
 #include "Sandbox.h"
 
-#include <pdcpp/pdnewlib.h>
+#include <pd_api.h>
 #include <math.h>
 #include <assert.h>
 
@@ -17,7 +16,7 @@ Application::Application(PlaydateAPI* api)
 void Application::Initialize()
 {        
     // Max framerate (aka 50Hz)
-    pd->display->setRefreshRate(100);
+    pd->display->setRefreshRate(0);
 
     // Default font
     const char* Err;
@@ -29,17 +28,11 @@ void Application::Initialize()
     }
 
     pd->system->resetElapsedTime();
-
-    Shadertoy = new ShaderToy();
-    Shadertoy->Initialize();
 }
 
 //******************************************************************************
 void Application::Finalize()
 {
-    Shadertoy->Finalize();
-    delete Shadertoy;
-    Shadertoy = nullptr;
 }
 
 //******************************************************************************

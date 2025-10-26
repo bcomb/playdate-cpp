@@ -7,7 +7,6 @@
 //******************************************************************************
 struct PlaydateAPI;
 struct LCDFont;
-class ShaderToy;
 
 //******************************************************************************
 // Class definition
@@ -34,6 +33,4 @@ private:
     LCDFont* Font = nullptr;
     float GlobalTime = 0.0f;
     uint32_t FrameCount = 0;
-
-    ShaderToy* Shadertoy = nullptr;
 };
