@@ -1,12 +1,9 @@
 #include "SvgLoader.h"
-
 #include "Globals.h"
 
+#include <pd_api.h>
 
-#include <pdcpp/pdnewlib.h>
-#include <ctype.h>
 #include <charconv>
-
 #include <cassert>
 #include <vector>
 #include <cctype>
@@ -85,7 +82,7 @@ const char* nextTag(const char* tag, const char* start, const char* end, const c
     // No attribute and No Content
     *startAttribute = *endAttribute = *startContent = *endContent = nullptr;
 
-    const int tag_len = strlen(tag);
+    const size_t tag_len = strlen(tag);
     assert(tag_len + 3 < 64); // "</>"
 
     char tmpTag[64];
@@ -155,7 +152,7 @@ const char* nextAttribute(const char* attr, const char* start, const char* end, 
     *startValue = *endValue = nullptr;
 
     char tmpAttr[32];
-    int attr_len = strlen(attr);
+    size_t attr_len = strlen(attr);
     assert(attr_len < 32);
 
     memcpy(&tmpAttr[0], attr, attr_len);
