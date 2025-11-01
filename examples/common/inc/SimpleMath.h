@@ -2,8 +2,11 @@
 
 #include "math.h"
 
+constexpr float EPSILON = 1e-6f;
+
 struct vec2 {
     float x, y;
+    vec2() = default;
     vec2(float _x) : x(_x), y(_x) {}
     vec2(float _x, float _y) : x(_x), y(_y) {}
     vec2 operator/(float v) const { return vec2(x / v, y / v); }
@@ -23,14 +26,54 @@ union vec4 {
 
 inline float clamp(float v, float minVal, float maxVal)
 {
-    if (v < minVal) return minVal;
-    if (v > maxVal) return maxVal;
-    return v;
+    return v < minVal ? minVal : (v > maxVal ? maxVal : v);
+}
+
+inline float squaredLength(const vec2& v)
+{
+    return v.x * v.x + v.y * v.y;
+}
+
+inline float dot(const vec2& a, const vec2& b)
+{
+    return a.x * b.x + a.y * b.y;
 }
 
 inline float length(const vec2& v)
 {
     return sqrtf(v.x * v.x + v.y * v.y);
+}
+
+inline vec2 normalize(const vec2& v)
+{
+    float len = length(v);
+    return v / len;
+}
+
+inline vec2 normalizeSafe(const vec2& v)
+{
+    float len = length(v);
+    if (len > EPSILON)
+    {
+        return v / len;
+    }
+    return vec2(0.0f, 0.0f);
+}
+
+// v : incident vector
+// n : normal vector (assumed normalized)
+inline vec2 reflect(const vec2& v, const vec2& n)
+{
+    return v - n * (2.0f * (v.x * n.x + v.y * n.y));
+}
+
+// v : incident vector
+// n : normal vector (may be not normalized)
+inline vec2 reflect_n(const vec2& v, const vec2& n)
+{
+    float nn = squaredLength(n);
+    if (nn <= EPSILON) return v; // avoid division by zero
+    return v - n * 2.0f * dot(v,n) / nn;
 }
 
 inline vec2 floor(const vec2& v)
@@ -50,6 +93,10 @@ inline vec2 fract(const vec2& v)
 
 inline float radians(float degrees) {
     return degrees * 0.017453292519943295f; // PI / 180
+}
+
+inline float degrees(float radians) {
+    return radians * 57.29577951308232f; // 180 / PI
 }
 
 inline float smoothstep(float edge0, float edge1, float x)
@@ -81,6 +128,11 @@ inline vec4 mix(vec4 a, vec4 b, float t)
         a.b * (1.0f - t) + b.b * t,
         a.a * (1.0f - t) + b.a * t
     );
+}
+
+inline vec2 lerp(const vec2& a, const vec2& b, float t)
+{
+    return a.x + t * (b.x - a.x);
 }
 
 inline float step(float edge, float x)

@@ -1,4 +1,4 @@
-set RUN_PROJECT=sandbox
+set RUN_PROJECT=physics
 
 set VS_VCVARS_PATH="C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
 
@@ -26,6 +26,7 @@ popd
 
 if errorlevel 1 (
     echo [ERROR] Build fail.
+    pause
     exit /b 1
 )
 

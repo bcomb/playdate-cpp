@@ -5,4 +5,5 @@ add_subdirectory(common)
 #add_subdirectory(application)
 add_subdirectory(shadertoy)
 add_subdirectory(sandbox)
+add_subdirectory(physics)
 

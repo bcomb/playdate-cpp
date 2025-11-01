@@ -1,11 +1,4 @@
-/**
- * Hello World CPP
- *
- * Reproduces the Hello World Example from the Playdate C SDK, but with C++
- * instead. A full game can be built from similar principles.
- *
- * MrBZapp 9/2023
- */
+
 #include <pdcpp/pdnewlib.h>
 #include "Application.h"
 #include "Globals.h"
