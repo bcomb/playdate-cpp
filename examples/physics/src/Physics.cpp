@@ -174,6 +174,33 @@ static int intersectCircleSegment(const vec2& center,
 }
 
 
+// Fast/simple segment-segment intersection (no overlap handling).
+// Returns true if [a0,a1] and [b0,b1] intersect; outI is the intersection point.
+static inline bool intersectSegmentSegment(const vec2& a0, const vec2& a1,
+    const vec2& b0, const vec2& b1,
+    vec2& outI)
+{
+    const float a = b1.x - b0.x;
+    const float b = a0.y - b0.y;
+    const float c = b1.y - b0.y;
+    const float d = a0.x - b0.x;
+    const float e = a1.x - a0.x;
+    const float f = a1.y - a0.y;
+
+    const float den = c * e - a * f;
+    if (fabsf(den) <= EPSILON) // parallel or degenerate -> treat as no hit
+        return false;
+
+    const float ua = (a * b - c * d) / den;
+    const float ub = (e * b - f * d) / den;
+
+    if (ua >= 0.0f && ua <= 1.0f && ub >= 0.0f && ub <= 1.0f)
+    {
+        outI = vec2(a0.x + ua * e, a0.y + ua * f);
+        return true;
+    }
+    return false;
+}
 
 // CCD: cercle en mouvement de c0 -> c1 (sur t in [0,1]) contre segment statique [s0,s1].
 // Retourne true si un impact se produit, avec:
@@ -339,27 +366,31 @@ static bool sweepCircleAgainstSegment(const vec2& c0,
     return false;
 }
 
+
+
 #define ARRAY_SIZE(_arr) (sizeof(_arr)/sizeof(_arr[0]))
 struct Ship
 {
     void update(float dt)
     {
         vec2 dir = { cosf(angle), sinf(angle) };
-        vec2 acc = dir * thrust;
-
-        vel = vel + acc * dt;
-
+        vec2 force = dir * thrust;
+        
         // Medium resistance approximation
         // --- Simple single-constant drag (quadratic) ---
         // F_drag = -k * |v| * v  -> a_drag = -k * |v| * v  (single constant k)
-        vec2 dragAcc = { 0.0f, 0.0f };
-        
-        float dragCoefficient = 0.02f; // tune this to taste (0 = no drag)        
+        vec2 dragForce = { 0.0f, 0.0f };
+        float dragCoeff = 0.02f; // tune this to taste (0 = no drag)        
         float speed = length(vel);
-        dragAcc = vel * -dragCoefficient * speed;
+        dragForce = vel * -dragCoeff * speed;
         
+        float invMass = 1.0f / mass;
 
-        vel = vel + (acc + dragAcc) * dt;
+        // Sum forces
+        vec2 acc = (force + dragForce + extraForce) * invMass;
+
+        // Integrate
+        vel = vel + acc * dt;
         pos = pos + vel * dt;
     }
 
@@ -403,9 +434,13 @@ struct Ship
 
     float angle = 0.0f;
     float thrust = 0.0f;
-
+    float mass = 16.0f;
+    float dragCoeff = 0.02f;
     vec2 pos = { 0.0f, 0.0f };
     vec2 vel = { 0.0f, 0.0f };
+
+    // Extra force from wall sliding
+    vec2 extraForce = { 0.0f, 0.0f };
 };
 
 void testPicoSvg(float Time)
@@ -556,6 +591,7 @@ struct Contact
 
 
 static std::vector<Contact> sContacts;
+static std::vector<vec2> sRayIntersects;
 
 void testCircleCCD2(float t)
 {
@@ -677,7 +713,7 @@ void test(float t)
         ship.pos = { 164, 33 } ;
         ship.pos = ship.pos * scaleWorld; // scale up
         
-        ship.thrust = 40.0f;
+        ship.thrust = 1024.0f;
 
         polygons = svgParsePath("level0.svg");
 
@@ -690,12 +726,18 @@ void test(float t)
         }
     }
 
+    
     float dt = t - previousTime;
-    PlaydateAPI* pd = _G.pd;        
+    PlaydateAPI* pd = _G.pd;    
+
+    pd->graphics->setDrawOffset(0, 0);
+    
 
 
     Ship previousShip = ship;
 
+
+    // Input management
     PDButtons current, pushed, released;
     pd->system->getButtonState(&current, &pushed, &released);
     if (pushed & kButtonUp)
@@ -715,11 +757,8 @@ void test(float t)
             ship.thrust = 0.0f;
         }
     }
-
     ship.thrust = clamp(ship.thrust, 0.0f, 10000.0f);
 
-    pd->graphics->setDrawOffset(0, 0);
-   
     // Angle are between 0 and 360, and i wan't to reach by the shorstest arc the target angle
     const float maxAngleSpeed = 360.0f; // degrees per second
     float targetAngle = pd->system->getCrankAngle();
@@ -729,6 +768,8 @@ void test(float t)
     else if (angleDiff < -180.0f) angleDiff += 360.0f;
     float angleInput = angleDiff;
     ship.angle += radians(clamp(angleInput, -maxAngleSpeed * dt, maxAngleSpeed * dt));
+    
+   
 
     char tmp[32] = { '\0' };
     sprintf(tmp, "%.1f thrust=%.1f", targetAngle, ship.thrust);
@@ -737,6 +778,58 @@ void test(float t)
 
     pd->graphics->setDrawOffset(roundf(-ship.pos.x + 200), roundf(-ship.pos.y + 120));
     
+
+    // Compute extra thrust imbue by wall
+    // For that we launch 3 raycast from ship center to its back
+    vec2 thrustDir[] = {
+        rotateAxis(normalize({-4.0f, 0.0f}),ship.angle),
+        rotateAxis(normalize({-4.0f, -4.0f}), ship.angle),
+        rotateAxis(normalize({-4.0f, 4.0f}), ship.angle)
+            };
+
+    float thrustLength = 32.0f;
+
+    for (int k = 0; k < ARRAY_SIZE(thrustDir); ++k)
+    {
+        drawArrow(previousShip.pos, previousShip.pos + thrustDir[k] * thrustLength, 1);
+    }
+
+    // brute-force ray intersect on all segment
+    sRayIntersects.clear();
+    for (int j = 0; j < polygons.size(); ++j)
+    {
+        for (int i = 0; i < polygons[j].size() - 1; ++i)
+        {
+            vec2 s0 = polygons[j][i];
+            vec2 s1 = polygons[j][i + 1];
+
+            for (int k = 0; k < ARRAY_SIZE(thrustDir); ++k)
+            {
+                vec2 outI;
+                bool intersect = intersectSegmentSegment(
+                    previousShip.pos, previousShip.pos + thrustDir[k] * thrustLength,
+                    s0, s1,
+                    outI);
+                if (intersect)
+                {
+                        sRayIntersects.push_back(outI);
+                }
+            }
+        }
+    }    
+
+    ship.extraForce = { 0.0f, 0.0f };
+    for(int i = 0; i< sRayIntersects.size(); ++i)
+    {
+        drawCross(sRayIntersects[i].x, sRayIntersects[i].y);
+        // Apply extra force
+        vec2 toShip = previousShip.pos - sRayIntersects[i];
+        float forceMax = 512.f;
+        float forceMag = mapRange(length(toShip), 0.0f, thrustLength, 1.0f, 0.0f);
+        ship.extraForce += toShip * forceMag * forceMax;
+    }
+
+
     //ship.angle += radians(clamp(angleInput, -maxAngleSpeed * dt, maxAngleSpeed * dt));
     //ship.angle = radians(pd->system->getCrankAngle());    
     ship.update(dt);
@@ -806,11 +899,11 @@ void test(float t)
             drawNormal(bestContact->p.x, bestContact->p.y, bestContact->n.x, bestContact->n.y, 15.0f, 1);
             */
 
-            ship.pos = bestContact->newPos + bestContact->n * 0.5f; // Push it a bit farther to avoid constant contact
+            ship.pos = bestContact->newPos + bestContact->n * 0.25f; // Push it a bit farther to avoid constant contact
             //ship.pos = bestContact->newPos;
             const float restitution = 0.8f;
             //ship.vel = reflect(ship.vel, bestContact->n) * restitution; // simple bounce with energy loss
-            //ship.vel -= bestContact->n * dot(ship.vel, bestContact->n); // glisse
+            ship.vel -= bestContact->n * dot(ship.vel, bestContact->n); // Slippery
         }
     }
 
