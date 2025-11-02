@@ -713,7 +713,7 @@ void test(float t)
         const float scaleWorld = 4.0;
 
         AudioSfx_Initialize();
-        ship.pos = { 164, 33 } ;
+        ship.pos = { 183, 23 } ;
         ship.pos = ship.pos * scaleWorld; // scale up
         
         ship.thrust = 1024.0f;
@@ -732,8 +732,9 @@ void test(float t)
 
     // Angle are between 0 and 360, and i wan't to reach by the shorstest arc the target angle
     const float maxAngleSpeed = 360.0f; // degrees per second
-    const float shipRadius = 6.0f;
-    const float crashDuration = 1;
+    const float shipRadius = 6.0f;      // Space ship bounding circle radius
+    const float crashDuration = 0.5f;   // How long the ship engine is disabled after crash
+    const float thrustLength = 32.0f;   // Length of the extra thrust raycasts
     
     float dt = t - previousTime;
     PlaydateAPI* pd = _G.pd;    
@@ -820,7 +821,6 @@ void test(float t)
             rotateAxis(normalize({-4.0f, 4.0f}), ship.angle)
         };
 
-        float thrustLength = 32.0f;
         vec2 lookDir = rotateAxis({ 1.0f, 0.0f }, ship.angle);
 
         // Debug extra thrust rays
@@ -851,6 +851,7 @@ void test(float t)
             }
         }
         
+        float maxForceMag = 0.0f;
         for (int i = 0; i < sRayIntersects.size(); ++i)
         {
             drawCross(sRayIntersects[i].x, sRayIntersects[i].y);
@@ -864,6 +865,13 @@ void test(float t)
             float ff = forceMag * forceMag;
             debugFF = ff;
             ship.extraForce += normalize(toShip) * ff * forceMax;
+
+            maxForceMag = fmaxf(maxForceMag, forceMag);
+        }
+
+        if (maxForceMag > 0)
+        {
+            SfxSlideHiss(maxForceMag / 4.0f);
         }
     }
 
@@ -952,7 +960,7 @@ void test(float t)
         drawPolyline(polygons[i].data(), (int)polygons[i].size(), 3, false);
     }
 
-    pd->graphics->drawRect(0, 0, 400, 240, kColorBlack);
+    //pd->graphics->drawRect(0, 0, 400, 240, kColorBlack);
     ship.draw(ship.pos);
 
     // Speed vector
