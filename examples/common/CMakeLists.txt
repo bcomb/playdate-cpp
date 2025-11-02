@@ -8,12 +8,18 @@ set(CMAKE_XCODE_GENERATE_SCHEME TRUE)
 
 set(SOURCES
     inc/playdate_cpp_app.hcpp
+
+    inc/SimpleMath.h
+
     inc/ImageLoader.h
     src/ImageLoader.cpp
     inc/SvgLoader.h
     src/SvgLoader.cpp
     inc/Globals.h
     src/Globals.cpp
+
+    inc/SoundFx.h
+    src/SoundFx.cpp
 )
 
 # static lib
