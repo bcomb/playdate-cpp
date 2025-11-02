@@ -327,7 +327,7 @@ std::vector<std::vector<vec2>> svgParsePath(const char* filename)
 {
     std::vector<std::vector<vec2>> polygons;
 
-    const char* startDocument = readTextFile("./level0.svg");
+    const char* startDocument = readTextFile(filename);
     if (startDocument)
     {
         const char* endDocument = startDocument + strlen(startDocument);
