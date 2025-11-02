@@ -1,4 +1,4 @@
-set RUN_PROJECT=audio
+set RUN_PROJECT=Physics
 
 set VS_VCVARS_PATH="C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
 
