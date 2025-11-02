@@ -121,8 +121,83 @@ struct Sfx_HissGraze
     }
 };
 
+struct Sfx_SlideHiss
+{
+    PDSynth*      s_hiss   = nullptr;
+    PDSynthLFO*   s_ampLFO = nullptr;
+    SoundChannel* s_ch     = nullptr;
+    TwoPoleFilter* s_bp    = nullptr;
 
+    void initialize()
+    {
+        auto snd = _G.pd->sound;
 
+        s_hiss = snd->synth->newSynth();
+        snd->synth->setWaveform(s_hiss, kWaveformNoise);
+        setup_amp_adsr(s_hiss, 0.005f, 0.18f, 0.0f, 0.16f);
+        snd->synth->setVolume(s_hiss, 0.85f, 0.85f);
+
+        s_ampLFO = snd->lfo->newLFO(kLFOTypeSine);
+        snd->lfo->setRate(s_ampLFO, 4.0f);
+        snd->lfo->setCenter(s_ampLFO, 0.70f);
+        snd->lfo->setDepth(s_ampLFO, 0.12f);
+        snd->synth->setAmplitudeModulator(s_hiss, (PDSynthSignalValue*)s_ampLFO);
+
+        s_ch = snd->channel->newChannel();
+        snd->channel->setVolume(s_ch, 0.7f);
+        snd->addChannel(s_ch);
+        snd->channel->addSource(s_ch, (SoundSource*)s_hiss);
+
+        s_bp = snd->effect->twopolefilter->newFilter();
+        snd->effect->twopolefilter->setType(s_bp, kFilterTypeBandPass);
+        snd->effect->twopolefilter->setFrequency(s_bp, 2600.0f);
+        snd->effect->twopolefilter->setResonance(s_bp, 0.20f);
+        snd->channel->addEffect(s_ch, (SoundEffect*)s_bp);
+        snd->effect->setMix((SoundEffect*)s_bp, 1.0f);
+    }
+
+    void play(float strength)
+    {
+        if (!s_hiss || !s_ampLFO || !s_ch || !s_bp) return;
+        strength = clamp(strength, 0.0f, 1.0f);
+
+        float centerHz = mapRange(strength, 0.0f, 1.0f, 1800.0f, 4200.0f);
+        float res      = mix(0.15f, 0.35f, strength);
+        _G.pd->sound->effect->twopolefilter->setFrequency(s_bp, centerHz);
+        _G.pd->sound->effect->twopolefilter->setResonance(s_bp, res);
+
+        _G.pd->sound->lfo->setRate(s_ampLFO,  mapRange(strength, 0.0f, 1.0f, 3.0f, 9.0f));
+        _G.pd->sound->lfo->setDepth(s_ampLFO, mix(0.08f, 0.22f, strength));
+        _G.pd->sound->lfo->setCenter(s_ampLFO, mix(0.60f, 0.90f, strength));
+
+        _G.pd->sound->synth->setAttackTime(s_hiss, 0.005f);
+        _G.pd->sound->synth->setDecayTime(s_hiss,  mix(0.12f, 0.24f, strength));
+        _G.pd->sound->synth->setSustainLevel(s_hiss, 0.0f);
+        _G.pd->sound->synth->setReleaseTime(s_hiss, mix(0.12f, 0.20f, strength));
+
+        float len = mix(0.14f, 0.25f, strength);
+        float vel = mix(0.50f, 0.85f, strength);
+        _G.pd->sound->synth->playNote(s_hiss, 200.0f, vel, len, 0);
+    }
+
+    void finalize()
+    {
+        auto snd = _G.pd->sound;
+
+        if (s_ampLFO) { snd->lfo->freeLFO(s_ampLFO); s_ampLFO = nullptr; }
+        if (s_hiss)   { snd->synth->freeSynth(s_hiss); s_hiss = nullptr; }
+
+        if (s_ch)
+        {
+            if (s_hiss) snd->channel->removeSource(s_ch, (SoundSource*)s_hiss);
+            if (s_bp)   snd->channel->removeEffect(s_ch, (SoundEffect*)s_bp);
+            snd->removeChannel(s_ch);
+            snd->channel->freeChannel(s_ch);
+            s_ch = nullptr;
+        }
+        if (s_bp) { snd->effect->twopolefilter->freeFilter(s_bp); s_bp = nullptr; }
+    }
+};
 
 Sfx_HissGraze sSfx_HissGraze;
 void SfxHissGraze(float strength)
@@ -130,14 +205,22 @@ void SfxHissGraze(float strength)
     sSfx_HissGraze.play(strength);
 }
 
+Sfx_SlideHiss sSfx_SlideHiss;
+void SfxSlideHiss(float strength)
+{
+    sSfx_SlideHiss.play(strength);
+}
+
 void AudioSfx_Initialize()
 {
     auto snd = _G.pd->sound;
     sSfx_HissGraze.initialize();
+    sSfx_SlideHiss.initialize();
 };
 
 void AudioSfx_Finalize()
 {
     auto snd = _G.pd->sound;
+    sSfx_SlideHiss.finalize();
     sSfx_HissGraze.finalize();
 };
