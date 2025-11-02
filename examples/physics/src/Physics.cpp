@@ -2,13 +2,14 @@
 #include "Globals.h"
 #include "SimpleMath.h"
 #include "SvgLoader.h"
+#include "SoundFx.h"
 
 #include <pd_api.h>
 #include <assert.h>
 #include <float.h>
 #include <vector>
 
-
+static uint32_t RNG = 0xDEADBEEF;
 
 inline void drawSegment(float x0, float y0, float x1, float y1, float w = 1)
 {
@@ -434,7 +435,7 @@ struct Ship
 
     float angle = 0.0f;
     float thrust = 0.0f;
-    float mass = 16.0f;
+    float mass = 8.0f;
     float dragCoeff = 0.02f;
     vec2 pos = { 0.0f, 0.0f };
     vec2 vel = { 0.0f, 0.0f };
@@ -704,18 +705,20 @@ void test(float t)
     static float previousTime = t;
     static bool sFirst = true;
     static std::vector<std::vector<vec2>> polygons;        
+    static float crashTime = t;
     if (sFirst)
     {
         sFirst = false;
 
         const float scaleWorld = 4.0;
 
+        AudioSfx_Initialize();
         ship.pos = { 164, 33 } ;
         ship.pos = ship.pos * scaleWorld; // scale up
         
         ship.thrust = 1024.0f;
 
-        polygons = svgParsePath("level0.svg");
+        polygons = svgParsePath("level2.svg");
 
         for (int i = 0; i < polygons.size(); ++i)
         {
@@ -726,16 +729,26 @@ void test(float t)
         }
     }
 
+
+    // Angle are between 0 and 360, and i wan't to reach by the shorstest arc the target angle
+    const float maxAngleSpeed = 360.0f; // degrees per second
+    const float shipRadius = 6.0f;
+    const float crashDuration = 1;
     
     float dt = t - previousTime;
     PlaydateAPI* pd = _G.pd;    
 
     pd->graphics->setDrawOffset(0, 0);
-    
+       
 
 
-    Ship previousShip = ship;
-
+    Ship previousShip = ship;    
+    bool engineOn = t - crashTime > crashDuration;
+    ship.thrust = 1024;
+    if (!engineOn)
+    {
+        ship.thrust = 0;
+    }
 
     // Input management
     PDButtons current, pushed, released;
@@ -757,12 +770,30 @@ void test(float t)
             ship.thrust = 0.0f;
         }
     }
+
+
+
     ship.thrust = clamp(ship.thrust, 0.0f, 10000.0f);
 
-    // Angle are between 0 and 360, and i wan't to reach by the shorstest arc the target angle
-    const float maxAngleSpeed = 360.0f; // degrees per second
     float targetAngle = pd->system->getCrankAngle();
     float currentAngle = normalizeAngle(degrees(ship.angle));
+    if (pd->system->isCrankDocked())
+    {
+        targetAngle = currentAngle;
+         
+        if (current & kButtonLeft)
+        {         
+            targetAngle = currentAngle - maxAngleSpeed * dt;
+        }
+
+        if (current & kButtonRight)
+        {
+            targetAngle = currentAngle + maxAngleSpeed * dt;
+        }
+    }
+
+
+    
     float angleDiff = targetAngle - currentAngle;
     if (angleDiff > 180.0f) angleDiff -= 360.0f;
     else if (angleDiff < -180.0f) angleDiff += 360.0f;
@@ -770,72 +801,76 @@ void test(float t)
     ship.angle += radians(clamp(angleInput, -maxAngleSpeed * dt, maxAngleSpeed * dt));
     
    
-
-    char tmp[32] = { '\0' };
-    sprintf(tmp, "%.1f thrust=%.1f", targetAngle, ship.thrust);
-    pd->graphics->drawText(tmp, strlen(tmp), kASCIIEncoding, 0, 0);
-
-
     pd->graphics->setDrawOffset(roundf(-ship.pos.x + 200), roundf(-ship.pos.y + 120));
     
 
     // Compute extra thrust imbue by wall
     // For that we launch 3 raycast from ship center to its back
-    vec2 thrustDir[] = {
-        rotateAxis(normalize({-4.0f, 0.0f}),ship.angle),
-        rotateAxis(normalize({-4.0f, -4.0f}), ship.angle),
-        rotateAxis(normalize({-4.0f, 4.0f}), ship.angle)
-            };
-
-    float thrustLength = 32.0f;
-
-    for (int k = 0; k < ARRAY_SIZE(thrustDir); ++k)
-    {
-        drawArrow(previousShip.pos, previousShip.pos + thrustDir[k] * thrustLength, 1);
-    }
-
     // brute-force ray intersect on all segment
     sRayIntersects.clear();
-    for (int j = 0; j < polygons.size(); ++j)
+    ship.extraForce = { 0.0f, 0.0f };
+    float debugFF = 0;
+    if (engineOn)
     {
-        for (int i = 0; i < polygons[j].size() - 1; ++i)
-        {
-            vec2 s0 = polygons[j][i];
-            vec2 s1 = polygons[j][i + 1];
+        vec2 thrustDir[] = {
+            rotateAxis(normalize({-4.0f, 0.0f}), ship.angle),
+            rotateAxis(normalize({-4.0f, -4.0f}), ship.angle),
+            rotateAxis(normalize({-4.0f, -2.0f}), ship.angle),
+            rotateAxis(normalize({-4.0f, 2.0f}), ship.angle),
+            rotateAxis(normalize({-4.0f, 4.0f}), ship.angle)
+        };
 
-            for (int k = 0; k < ARRAY_SIZE(thrustDir); ++k)
+        float thrustLength = 32.0f;
+        vec2 lookDir = rotateAxis({ 1.0f, 0.0f }, ship.angle);
+
+        // Debug extra thrust rays
+        for (int k = 0; k < ARRAY_SIZE(thrustDir); ++k)
+        {
+            drawArrow(previousShip.pos + lookDir * shipRadius , previousShip.pos + thrustDir[k] * thrustLength, 1);
+        }
+
+        for (int j = 0; j < polygons.size(); ++j)
+        {
+            for (int i = 0; i < polygons[j].size() - 1; ++i)
             {
-                vec2 outI;
-                bool intersect = intersectSegmentSegment(
-                    previousShip.pos, previousShip.pos + thrustDir[k] * thrustLength,
-                    s0, s1,
-                    outI);
-                if (intersect)
+                vec2 s0 = polygons[j][i];
+                vec2 s1 = polygons[j][i + 1];
+
+                for (int k = 0; k < ARRAY_SIZE(thrustDir); ++k)
                 {
+                    vec2 outI;
+                    bool intersect = intersectSegmentSegment(
+                        previousShip.pos, previousShip.pos + thrustDir[k] * thrustLength,
+                        s0, s1,
+                        outI);
+                    if (intersect)
+                    {
                         sRayIntersects.push_back(outI);
+                    }
                 }
             }
         }
-    }    
+        
+        for (int i = 0; i < sRayIntersects.size(); ++i)
+        {
+            drawCross(sRayIntersects[i].x, sRayIntersects[i].y);
+            // Apply extra force
+            vec2 toShip = previousShip.pos - sRayIntersects[i];
+            float forceMax = 512.f;
+            //float forceMag = mapRange(length(toShip), 0.0f, thrustLength, 1.0f, 0.0f);
+            //ship.extraForce += toShip * forceMag * forceMax;
 
-    ship.extraForce = { 0.0f, 0.0f };
-    for(int i = 0; i< sRayIntersects.size(); ++i)
-    {
-        drawCross(sRayIntersects[i].x, sRayIntersects[i].y);
-        // Apply extra force
-        vec2 toShip = previousShip.pos - sRayIntersects[i];
-        float forceMax = 512.f;
-        float forceMag = mapRange(length(toShip), 0.0f, thrustLength, 1.0f, 0.0f);
-        ship.extraForce += toShip * forceMag * forceMax;
+            float forceMag = mapRange(length(toShip), 0.0f, thrustLength, 4.0f, 0.0f);
+            float ff = forceMag * forceMag;
+            debugFF = ff;
+            ship.extraForce += normalize(toShip) * ff * forceMax;
+        }
     }
-
 
     //ship.angle += radians(clamp(angleInput, -maxAngleSpeed * dt, maxAngleSpeed * dt));
     //ship.angle = radians(pd->system->getCrankAngle());    
     ship.update(dt);
-
-
-    const float shipRadius = 6.0f;
+    
 
     // brute-force CCD against level geometry
     sContacts.clear();
@@ -899,11 +934,15 @@ void test(float t)
             drawNormal(bestContact->p.x, bestContact->p.y, bestContact->n.x, bestContact->n.y, 15.0f, 1);
             */
 
-            ship.pos = bestContact->newPos + bestContact->n * 0.25f; // Push it a bit farther to avoid constant contact
+            ship.pos = bestContact->newPos + bestContact->n * 0.375f; // Push it a bit farther to avoid constant contact
             //ship.pos = bestContact->newPos;
-            const float restitution = 0.8f;
-            //ship.vel = reflect(ship.vel, bestContact->n) * restitution; // simple bounce with energy loss
-            ship.vel -= bestContact->n * dot(ship.vel, bestContact->n); // Slippery
+            const float restitution = 0.5f;
+            ship.vel = reflect(ship.vel, bestContact->n) * restitution; // simple bounce with energy loss
+            //ship.vel -= bestContact->n * dot(ship.vel, bestContact->n); // Slippery
+
+            SfxHissGraze(RandomFloat01(&RNG));
+
+            crashTime = t;
         }
     }
 
@@ -916,6 +955,14 @@ void test(float t)
     pd->graphics->drawRect(0, 0, 400, 240, kColorBlack);
     ship.draw(ship.pos);
 
+    // Speed vector
+    drawArrow(ship.pos, ship.pos + ship.vel);
+
+    pd->graphics->setDrawOffset(0, 0);
+
+    char tmp[64] = { '\0' };
+    sprintf(tmp, "%.f thr=%.f ethr=%.f ff=%.3f", targetAngle, ship.thrust, length(ship.extraForce), debugFF);
+    pd->graphics->drawText(tmp, strlen(tmp), kASCIIEncoding, 0, 0);
 
 
     previousTime = t;
