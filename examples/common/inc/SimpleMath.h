@@ -2,8 +2,25 @@
 
 #include <math.h>
 #include <assert.h>
+#include <stdint.h>
 
 constexpr float EPSILON = 1e-6f;
+
+
+inline uint32_t XorShift32(uint32_t* state)
+{
+    uint32_t x = *state;
+    x ^= x << 13;
+    x ^= x >> 17;
+    x ^= x << 15;
+    *state = x;
+    return x;
+}
+
+inline float RandomFloat01(uint32_t* state)
+{
+    return (XorShift32(state) & 0xFFFFFF) / 16777216.0f;
+}
 
 struct vec2 {
     float x, y;
