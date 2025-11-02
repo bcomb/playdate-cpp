@@ -1,6 +1,7 @@
 #pragma once
 
-#include "math.h"
+#include <math.h>
+#include <assert.h>
 
 constexpr float EPSILON = 1e-6f;
 
@@ -32,6 +33,11 @@ inline float clamp(float v, float minVal, float maxVal)
 inline float squaredLength(const vec2& v)
 {
     return v.x * v.x + v.y * v.y;
+}
+
+inline float cross(const vec2& a, const vec2 b)
+{
+    return a.x * b.y - b.y * b.x;
 }
 
 inline float dot(const vec2& a, const vec2& b)
@@ -158,6 +164,25 @@ inline vec2 rotate(const vec2& point, const vec2& center, float radian)
     );
 
     return rotated + center;
+}
+
+// Map v from [inMin,inMax] to [outMin,outMax] (no clamp)
+inline float mapRange(float v, float inMin, float inMax, float outMin, float outMax)
+{
+    float denom = (inMax - inMin);
+    //if (fabsf(denom) <= EPSILON) return outMin; // fallback if input range is degenerate
+    assert(fabsf(denom) > EPSILON);
+    float t = (v - inMin) / denom;
+    return outMin + t * (outMax - outMin);
+}
+
+// Rotate a 2D direction by an angle (radians), around the origin.
+// If 'dir' is normalized, the result remains normalized.
+inline vec2 rotateAxis(const vec2& dir, float angleRad)
+{
+    float c = cosf(angleRad);
+    float s = sinf(angleRad);
+    return vec2(dir.x * c - dir.y * s, dir.x * s + dir.y * c);
 }
 
 union mat2
