@@ -10,10 +10,11 @@ struct vec2 {
     vec2() = default;
     vec2(float _x) : x(_x), y(_x) {}
     vec2(float _x, float _y) : x(_x), y(_y) {}
-    vec2 operator/(float v) const { return vec2(x / v, y / v); }
-    vec2 operator-(const vec2& v) const { return vec2(x - v.x, y - v.y); }
+    
     vec2 operator+(const vec2& v) const { return vec2(x + v.x, y + v.y); }
+    vec2 operator-(const vec2& v) const { return vec2(x - v.x, y - v.y); }    
     vec2 operator*(float v) const { return vec2(x * v, y * v); }
+    vec2 operator/(float v) const { return vec2(x / v, y / v); }
     vec2& operator-=(const vec2& v) { x -= v.x; y -= v.y; return *this; }
     vec2& operator+=(const vec2& v) { x += v.x; y += v.y; return *this; }
 
@@ -22,8 +23,17 @@ struct vec2 {
 union vec4 {
     struct { float r, g, b, a; };
     struct { float x, y, z, w; };
-    vec4(float _x, float _y, float _z, float _w) : r(_x), g(_y), b(_z), a(_w) {}
+    vec4(float _x, float _y, float _z, float _w) : r(_x), g(_y), b(_z), a(_w) {}    
+    vec4 operator+(const vec4& v) const { return vec4(r + v.r, g + v.g, b + v.b, a + v.a); }
+    vec4 operator-(const vec4& v) const { return vec4(r - v.r, g - v.g, b - v.b, a - v.a); }
+    vec4 operator*(float v) const { return vec4(r * v, g * v, b * v, a * v); }
+    vec4 operator/(float v) const { return vec4(r / v, g / v, b / v, a / v); }
 };
+
+inline vec4 mix(vec4 a, vec4 b, float t)
+{
+    return a * (1.0f - t) + b * t;
+}
 
 inline float clamp(float v, float minVal, float maxVal)
 {
@@ -126,14 +136,9 @@ inline float mix(float a, float b, float t)
     return a * (1.0f - t) + b * t;
 }
 
-inline vec4 mix(vec4 a, vec4 b, float t)
+inline vec2 mix(vec2 a, vec2 b, float t)
 {
-    return vec4(
-        a.r * (1.0f - t) + b.r * t,
-        a.g * (1.0f - t) + b.g * t,
-        a.b * (1.0f - t) + b.b * t,
-        a.a * (1.0f - t) + b.a * t
-    );
+    return a * (1.0f - t) + b * t;
 }
 
 inline vec2 lerp(const vec2& a, const vec2& b, float t)
