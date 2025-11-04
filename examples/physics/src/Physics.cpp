@@ -11,6 +11,16 @@
 
 static uint32_t RNG = 0xDEADBEEF;
 
+#define LOG_ENABLE
+#ifdef LOG_ENABLE
+#define PD_LOG(_format_, ...) _G.pd->system->logToConsole(_format_, ##__VA_ARGS__)
+#else
+#define PD_LOG(...)
+#endif
+
+#define PD_ERROR(_format_, ...) _G.pd->system->error(_format_, ##__VA_ARGS__)
+#define PD_ERROR_IF(_cond_, _format_, ...) do { if(!(_cond_)) _G.pd->system->error(_format_, ##__VA_ARGS__); } while(0)
+
 inline void drawSegment(float x0, float y0, float x1, float y1, float w = 1)
 {
     _G.pd->graphics->drawLine(x0, y0, x1, y1, w, kColorBlack);
@@ -412,23 +422,23 @@ struct Ship
             p[i] += drawPos;
         }       
 
+
+
+        // Test fill
+        int coords[ARRAY_SIZE(p)*2];
+        for(int i=0; i< ARRAY_SIZE(p); i++)
+        {
+            coords[i*2] = (int)p[i].x;
+            coords[i*2+1] = (int)p[i].y;
+        }
+        pd->graphics->fillPolygon(ARRAY_SIZE(p), coords, kColorWhite, kPolygonFillNonZero);
+
+
         for (int i = 0; i < ARRAY_SIZE(p); ++i)
         {
             int j = (i + 1) % ARRAY_SIZE(p);
             pd->graphics->drawLine(roundf(p[i].x), roundf(p[i].y), roundf(p[j].x), roundf(p[j].y), line_width, kColorBlack);
         }
-
-        // Bound volume
-        //drawCirle(roundf(drawPos.x), roundf(drawPos.y), 6, 1);
-
-        // Test fill
-        //int coords[ARRAY_SIZE(p)*2];
-        //for(int i=0; i< ARRAY_SIZE(p); i++)
-        //{
-        //    coords[i*2] = (int)p[i].x;
-        //    coords[i*2+1] = (int)p[i].y;
-        //}
-        //pd->graphics->fillPolygon(ARRAY_SIZE(p), coords, kColorBlack, kPolygonFillNonZero);
         
 
     }
@@ -694,9 +704,17 @@ void testCircleCCD2(float t)
  
 }
 
+
+struct ParallaxBitmap
+{
+    LCDBitmap* bitmap;
+    int x, y;
+    float pF; // parralax factor
+};
+
 void test(float t)
 {
-
+    PlaydateAPI* pd = _G.pd;
     //debugOneCCD(t);
     //testCircleCCD(t);
     //testCircleCCD2(t);
@@ -706,19 +724,108 @@ void test(float t)
     static bool sFirst = true;
     static std::vector<std::vector<vec2>> polygons;        
     static float crashTime = t;
+    static bool debugDraw = false;
+    const char* planetUrls[] = {
+        "images/dither/atkinson",
+        "images/dither/floyd"
+    };
+    static LCDBitmap* planetBitmaps[ARRAY_SIZE(planetUrls)] = {};
+    const char* starUrls[] = {
+        "images/particles/snowflake1",
+        "images/particles/snowflake2",
+        "images/particles/snowflake3",
+        "images/particles/snowflake4"
+    };
+    static LCDBitmap* starBitmaps[ARRAY_SIZE(starUrls)] = {};
+
+    //static ParallaxBitmap planets[30];
+    //static ParallaxBitmap particles[30];
+    static std::vector<ParallaxBitmap> planets;
+    static std::vector<ParallaxBitmap> stars;
+
+    //static ParallaxBitmap stars[300];
+    //static ParallaxBitmap stars[300];
+
     if (sFirst)
     {
+        PD_LOG("Initializing...");
+
         sFirst = false;
-
-        const float scaleWorld = 4.0;
-
+        PD_LOG("Generate audio...");
         AudioSfx_Initialize();
-        ship.pos = { 183, 23 } ;
+
+        PD_LOG("Load planet...");
+        // Load planet bitmaps
+        for(int i = 0; i< ARRAY_SIZE(planetUrls); ++i)
+        {
+            const char* outErr = nullptr;
+            const char* path = planetUrls[i];
+            planetBitmaps[i] = pd->graphics->loadBitmap(path, &outErr);
+            PD_ERROR_IF(planetBitmaps[i] != nullptr, "Can't load bitmap %s (%s)", path, outErr ? outErr : "no message");
+        }
+
+        PD_LOG("Load particles...");
+        // Load particle bitmaps
+        for (int i = 0; i < ARRAY_SIZE(starUrls); ++i)
+        {
+            const char* outErr = nullptr;
+            const char* path = starUrls[i];
+            starBitmaps[i] = pd->graphics->loadBitmap(path, &outErr);
+            PD_ERROR_IF(starBitmaps[i] != nullptr, "Can't load bitmap %s", path, outErr ? outErr : "no message");
+        }
+
+        
+        // Random planet generation
+        PD_LOG("Planet generation...");
+        const int planetCount = 10;
+        planets.resize(planetCount);
+        for (int i = 0; i < planets.size(); ++i)
+        {
+            float x = mapRange(RandomFloat01(&RNG), 0.0, 1.0, 64, 1600 - 64);
+            float y = mapRange(RandomFloat01(&RNG), 0.0, 1.0, 64, 960 - 64);
+            float parallaxF = mapRange(RandomFloat01(&RNG), 0.0, 1.0, 0.4, 0.7);
+            int bitmapId = rand() % ARRAY_SIZE(planetUrls);
+            planets[i] = { planetBitmaps[bitmapId], (int)x, (int)y, parallaxF };
+        }
+
+        // Random particle generation
+        PD_LOG("Stars generation...");
+
+        const int starCount = 300;
+        stars.resize(starCount);
+        for (int i = 0; i < stars.size(); ++i)
+        {
+            float x = mapRange(RandomFloat01(&RNG), 0.0, 1.0, 0, 1600);
+            float y = mapRange(RandomFloat01(&RNG), 0.0, 1.0, 0, 960);
+
+            float parallaxF;
+            if (i % 2 == 0)
+            {
+                parallaxF = mapRange(RandomFloat01(&RNG), 0.0, 1.0, 0.4, 0.7);
+            }
+            else
+            {
+                parallaxF = mapRange(RandomFloat01(&RNG), 0.0, 1.0, 1.2, 1.8);
+            }
+            int bitmapId = rand() % ARRAY_SIZE(starUrls);
+            stars[i] = { starBitmaps[bitmapId], (int)x, (int)y, parallaxF };
+        }
+
+
+        // Level 2
+        //const float scaleWorld = 4.0;
+        //ship.pos = { 183, 23 } ;
+
+        // Level 3
+        const float scaleWorld = 1.0;
+        ship.pos = { 670, 90 } ;
+
         ship.pos = ship.pos * scaleWorld; // scale up
         
         ship.thrust = 1024.0f;
 
-        polygons = svgParsePath("level2.svg");
+        PD_LOG("Load level...");
+        polygons = svgParsePath("level3.svg");
 
         for (int i = 0; i < polygons.size(); ++i)
         {
@@ -727,22 +834,22 @@ void test(float t)
                 polygons[i][j] = polygons[i][j] * scaleWorld; // scale up
             }
         }
+
+
+        PD_LOG("Init finished.");
     }
 
-
     // Angle are between 0 and 360, and i wan't to reach by the shorstest arc the target angle
-    const float maxAngleSpeed = 360.0f; // degrees per second
-    const float shipRadius = 6.0f;      // Space ship bounding circle radius
-    const float crashDuration = 0.5f;   // How long the ship engine is disabled after crash
-    const float thrustLength = 32.0f;   // Length of the extra thrust raycasts
+    const float maxAngleSpeed = 360.0f;     // degrees per second
+    const float shipRadius = 4.0f;          // Space ship bounding circle radius
+    const float crashDuration = 0.5f;       // How long the ship engine is disabled after crash
+    const float thrustLength = 24.0f;       // Length of the extra thrust raycasts
+    const float thrustExtraForce = 512.0f;  // Max extra thrust force from wall proximity
     
-    float dt = t - previousTime;
-    PlaydateAPI* pd = _G.pd;    
+    float dt = t - previousTime;    
 
     pd->graphics->setDrawOffset(0, 0);
        
-
-
     Ship previousShip = ship;    
     bool engineOn = t - crashTime > crashDuration;
     ship.thrust = 1024;
@@ -770,6 +877,17 @@ void test(float t)
         {
             ship.thrust = 0.0f;
         }
+    }
+
+    if (pushed & kButtonB)
+    {
+        debugDraw = !debugDraw;
+    }
+
+    static bool enableParticles = false;
+    if (pushed & kButtonA)
+    {
+        enableParticles = !enableParticles;
     }
 
 
@@ -802,84 +920,32 @@ void test(float t)
     ship.angle += radians(clamp(angleInput, -maxAngleSpeed * dt, maxAngleSpeed * dt));
     
    
-    pd->graphics->setDrawOffset(roundf(-ship.pos.x + 200), roundf(-ship.pos.y + 120));
+    vec2 drawOffset = { -ship.pos.x + 200, -ship.pos.y + 120 };
+    pd->graphics->setDrawOffset(drawOffset.x, drawOffset.y);
     
-
-    // Compute extra thrust imbue by wall
-    // For that we launch 3 raycast from ship center to its back
-    // brute-force ray intersect on all segment
-    sRayIntersects.clear();
-    ship.extraForce = { 0.0f, 0.0f };
-    float debugFF = 0;
-    if (engineOn)
+    // Populate background with parallax planets
+    for (int i = 0; i < planets.size(); ++i)
     {
-        vec2 thrustDir[] = {
-            rotateAxis(normalize({-4.0f, 0.0f}), ship.angle),
-            rotateAxis(normalize({-4.0f, -4.0f}), ship.angle),
-            rotateAxis(normalize({-4.0f, -2.0f}), ship.angle),
-            rotateAxis(normalize({-4.0f, 2.0f}), ship.angle),
-            rotateAxis(normalize({-4.0f, 4.0f}), ship.angle)
-        };
+        //pd->graphics->setDrawOffset(drawOffset.x* planets[i].pF, drawOffset.y* planets[i].pF);
+        pd->graphics->drawBitmap(planets[i].bitmap, planets[i].x - drawOffset.x * planets[i].pF, planets[i].y - drawOffset.y * planets[i].pF, kBitmapUnflipped);
+    }
 
-        vec2 lookDir = rotateAxis({ 1.0f, 0.0f }, ship.angle);
-
-        // Debug extra thrust rays
-        for (int k = 0; k < ARRAY_SIZE(thrustDir); ++k)
+    // Populate foreground with parallax particles
+    if (enableParticles)
+    {
+        for (int i = 0; i < stars.size(); ++i)
         {
-            drawArrow(previousShip.pos + lookDir * shipRadius , previousShip.pos + thrustDir[k] * thrustLength, 1);
-        }
-
-        for (int j = 0; j < polygons.size(); ++j)
-        {
-            for (int i = 0; i < polygons[j].size() - 1; ++i)
-            {
-                vec2 s0 = polygons[j][i];
-                vec2 s1 = polygons[j][i + 1];
-
-                for (int k = 0; k < ARRAY_SIZE(thrustDir); ++k)
-                {
-                    vec2 outI;
-                    bool intersect = intersectSegmentSegment(
-                        previousShip.pos, previousShip.pos + thrustDir[k] * thrustLength,
-                        s0, s1,
-                        outI);
-                    if (intersect)
-                    {
-                        sRayIntersects.push_back(outI);
-                    }
-                }
-            }
-        }
-        
-        float maxForceMag = 0.0f;
-        for (int i = 0; i < sRayIntersects.size(); ++i)
-        {
-            drawCross(sRayIntersects[i].x, sRayIntersects[i].y);
-            // Apply extra force
-            vec2 toShip = previousShip.pos - sRayIntersects[i];
-            float forceMax = 512.f;
-            //float forceMag = mapRange(length(toShip), 0.0f, thrustLength, 1.0f, 0.0f);
-            //ship.extraForce += toShip * forceMag * forceMax;
-
-            float forceMag = mapRange(length(toShip), 0.0f, thrustLength, 4.0f, 0.0f);
-            float ff = forceMag * forceMag;
-            debugFF = ff;
-            ship.extraForce += normalize(toShip) * ff * forceMax;
-
-            maxForceMag = fmaxf(maxForceMag, forceMag);
-        }
-
-        if (maxForceMag > 0)
-        {
-            SfxSlideHiss(maxForceMag / 4.0f);
+            pd->graphics->drawBitmap(stars[i].bitmap, stars[i].x - drawOffset.x * stars[i].pF, stars[i].y - drawOffset.y * stars[i].pF, kBitmapUnflipped);
         }
     }
+
+
+    pd->graphics->setDrawOffset(drawOffset.x, drawOffset.y);
 
     //ship.angle += radians(clamp(angleInput, -maxAngleSpeed * dt, maxAngleSpeed * dt));
     //ship.angle = radians(pd->system->getCrankAngle());    
     ship.update(dt);
     
-
     // brute-force CCD against level geometry
     sContacts.clear();
     vec2 c0 = previousShip.pos;
@@ -905,15 +971,6 @@ void test(float t)
                 ctt.s0 = s0;
                 ctt.s1 = s1;
                 sContacts.push_back(ctt);
-                //sContacts.push_back({ {contact.x, contact.y}, {normal.x, normal.y}, newCenter });
-
-
-                /*
-                drawArrow(c0, c0 + normalize(c1 - c0) * 64.0, 1);
-                drawCirle(newCenter.x, newCenter.y, shipRadius);
-                drawCross(contact.x, contact.y);
-                drawNormal(contact.x, contact.y, normal.x, normal.y, 15.0f, 1);
-                */
             }
         }
     }
@@ -954,23 +1011,117 @@ void test(float t)
         }
     }
 
+
+
+    // Extra thrust from wall proximity
+    // Compute extra thrust imbue by wall
+    // For that we launch 3 raycast from ship center to its back
+    // brute-force ray intersect on all segment
+    sRayIntersects.clear();
+    ship.extraForce = { 0.0f, 0.0f };
+    float debugFF = 0;
+    if (engineOn)
+    {
+        vec2 thrustDir[] = {
+            rotateAxis(normalize({-4.0f, 0.0f}), ship.angle),
+            rotateAxis(normalize({-4.0f, -4.0f}), ship.angle),
+            rotateAxis(normalize({-4.0f, -2.0f}), ship.angle),
+            rotateAxis(normalize({-4.0f, 2.0f}), ship.angle),
+            rotateAxis(normalize({-4.0f, 4.0f}), ship.angle)
+        };
+
+        vec2 lookDir = rotateAxis({ 1.0f, 0.0f }, ship.angle);
+        vec2 originRay = ship.pos /* - lookDir * shipRadius*/;
+
+        // Debug extra thrust rays
+        if (debugDraw)
+        {
+            for (int k = 0; k < ARRAY_SIZE(thrustDir); ++k)
+            {
+                drawArrow(originRay, originRay + thrustDir[k] * thrustLength, 1);
+            }
+        }
+
+        for (int j = 0; j < polygons.size(); ++j)
+        {
+            for (int i = 0; i < polygons[j].size() - 1; ++i)
+            {
+                vec2 s0 = polygons[j][i];
+                vec2 s1 = polygons[j][i + 1];
+
+                for (int k = 0; k < ARRAY_SIZE(thrustDir); ++k)
+                {
+                    vec2 outI;
+                    bool intersect = intersectSegmentSegment(
+                        originRay, originRay + thrustDir[k] * thrustLength,
+                        s0, s1,
+                        outI);
+                    if (intersect)
+                    {
+                        sRayIntersects.push_back(outI);
+                    }
+                }
+            }
+        }
+
+        float maxForceMag = 0.0f;
+        for (int i = 0; i < sRayIntersects.size(); ++i)
+        {
+            if (debugDraw)
+            {
+                drawCross(sRayIntersects[i].x, sRayIntersects[i].y);
+            }
+
+            // Apply extra force
+            vec2 toShip = originRay - sRayIntersects[i];
+            //float forceMag = mapRange(length(toShip), 0.0f, thrustLength, 1.0f, 0.0f);
+            //ship.extraForce += toShip * forceMag * forceMax;
+
+            float forceMag = mapRange(length(toShip), 0.0f, thrustLength, 2.8f, 0.8f);
+            float ff = forceMag * forceMag;
+            debugFF = ff;
+            ship.extraForce += normalize(toShip) * ff * thrustExtraForce;
+
+            maxForceMag = fmaxf(maxForceMag, forceMag);
+        }
+
+        if (maxForceMag > 0)
+        {
+            SfxSlideHiss(maxForceMag / 3.0f);
+        }
+    }
+
+
+
   
     for (int i = 0; i < polygons.size(); ++i)
     {
         drawPolyline(polygons[i].data(), (int)polygons[i].size(), 3, false);
     }
 
+
     //pd->graphics->drawRect(0, 0, 400, 240, kColorBlack);
-    ship.draw(ship.pos);
+    if (!debugDraw)
+        ship.draw(ship.pos);
 
     // Speed vector
-    drawArrow(ship.pos, ship.pos + ship.vel);
+    if (debugDraw)
+    {
+        // Bound volume
+        drawCirle(ship.pos.x, ship.pos.y, shipRadius, 1);
+
+        drawArrow(ship.pos, ship.pos + ship.vel * 0.5f); // scale down velocity vector debug
+    }
+
 
     pd->graphics->setDrawOffset(0, 0);
 
     char tmp[64] = { '\0' };
-    sprintf(tmp, "%.f thr=%.f ethr=%.f ff=%.3f", targetAngle, ship.thrust, length(ship.extraForce), debugFF);
-    pd->graphics->drawText(tmp, strlen(tmp), kASCIIEncoding, 0, 0);
+    if (debugDraw)
+    {
+        sprintf(tmp, "%.f thr=%.f ethr=%.f ff=%.3f v=%.f", targetAngle, ship.thrust, length(ship.extraForce), debugFF, length(ship.vel));
+        pd->graphics->drawText(tmp, strlen(tmp), kASCIIEncoding, 0, 0);
+    }
 
 
     previousTime = t;
