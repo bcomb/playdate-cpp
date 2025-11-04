@@ -45,6 +45,8 @@ extern "C" {
         if (event == kEventInit)
         {
             _G.pd = pd;
+            pd->system->logToConsole("Event Init...");
+
             pd->display->setRefreshRate(0);
             
             _G.App = new Application(pd);
@@ -57,7 +59,7 @@ extern "C" {
         // Destroy the global state to prevent memory leaks
         if (event == kEventTerminate)
         {
-            pd->system->logToConsole("Tearing down...");
+            pd->system->logToConsole("Event terminate...");
             _G.App->Finalize();
             delete _G.App;
             _G.App = nullptr;
